@@ -19,7 +19,7 @@ class ParserService {
      */
     public function parseAccessLog(): string {
         $accessData  = fopen(CONFIG_DIR . '/../logs/access.log', "r+");
-        while ($row = stream_get_line($accessData, 1024 * 1024, PHP_EOL))
+        while ($row  = stream_get_line($accessData, 1024 * 1024, PHP_EOL))
         {
             $this->_getParsedData($row);
             $this->views++;
@@ -46,9 +46,18 @@ class ParserService {
     protected function _getParsedData(string $row): void {
         $rowChunks          = explode('"', $row);
         $statusCodeNTraffic = trim($rowChunks[2]);
-        $this->_getStatusCodeAndTraffic($statusCodeNTraffic);
         $this->_isUrlUnique($rowChunks[1]);
+        $this->_getStatusCodeAndTraffic($statusCodeNTraffic);
         $this->_getCrawler($rowChunks[5]);
+    }
+
+    /**
+     * @param $row
+     */
+    protected function _isUrlUnique(string $url): void {
+        if (!in_array($url, $this->urls, true)) {
+            $this->urls[] = $url;
+        }
     }
 
     /**
@@ -61,8 +70,7 @@ class ParserService {
         $statusCode = count($rawData) > 0 ? (int) $rawData[0] : null;
 
         if (!is_null($statusCode)) {
-            $check = $this->_isStatusCodeARedirect($statusCode);
-            $check ? (int) $this->traffic += $rawData[1] : $this->traffic += 0;
+            $this->_isStatusCodeARedirect($statusCode) ? $this->traffic += 0 : $this->traffic += (int) $rawData[1];
         }
 
         if (array_key_exists($statusCode, $this->statusCodes) && $statusCode !== null) {
@@ -72,20 +80,15 @@ class ParserService {
         }
     }
 
+    /**
+     * @param int $statusCode
+     * @return bool
+     */
     protected function _isStatusCodeARedirect(int $statusCode): bool {
         if ($statusCode === 301) {
             return true;
         }
         return false;
-    }
-
-    /**
-     * @param $row
-     */
-    protected function _isUrlUnique(string $url): void {
-        if (!in_array($url, $this->urls, true)) {
-            $this->urls[] = $url;
-        }
     }
 
     /**
