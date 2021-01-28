@@ -6,7 +6,6 @@ class ParserService {
     protected $statusCodes     = [];
     protected $traffic         = 0;
     protected $urls            = [];
-    protected $countUniqueUrls = 0;
     protected $crawlers        = [
         'Google' => 0,
         'Bing'   => 0,
@@ -29,7 +28,7 @@ class ParserService {
 
         $result     = [
             'views'       => $this->views,
-            'urls'        => $this->countUniqueUrls,
+            'urls'        => count($this->urls),
             'traffic'     => $this->traffic,
             'crawlers'    => $this->crawlers,
             'statusCodes' => $this->statusCodes,
@@ -48,7 +47,7 @@ class ParserService {
         $rowChunks          = explode('"', $row);
         $statusCodeNTraffic = trim($rowChunks[2]);
         $this->_getStatusCodeAndTraffic($statusCodeNTraffic);
-        $this->_isUrlUnique($rowChunks[3]);
+        $this->_isUrlUnique($rowChunks[1]);
         $this->_getCrawler($rowChunks[5]);
     }
 
@@ -61,22 +60,30 @@ class ParserService {
         $rawData    = explode(' ', $row);
         $statusCode = count($rawData) > 0 ? (int) $rawData[0] : null;
 
+        if (!is_null($statusCode)) {
+            $check = $this->_isStatusCodeARedirect($statusCode);
+            $check ? (int) $this->traffic += $rawData[1] : $this->traffic += 0;
+        }
+
         if (array_key_exists($statusCode, $this->statusCodes) && $statusCode !== null) {
             $this->statusCodes[$statusCode]++;
         } else {
             $this->statusCodes[$statusCode] = 1;
         }
+    }
 
-        count($rawData) > 0 ? (int) $this->traffic += $rawData[1] : $this->traffic += 0;
+    protected function _isStatusCodeARedirect(int $statusCode): bool {
+        if ($statusCode === 301) {
+            return true;
+        }
+        return false;
     }
 
     /**
      * @param $row
      */
     protected function _isUrlUnique(string $url): void {
-        if (in_array($url, $this->urls, true)) {
-            $this->countUniqueUrls++;
-        } else {
+        if (!in_array($url, $this->urls, true)) {
             $this->urls[] = $url;
         }
     }
